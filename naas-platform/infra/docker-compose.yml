@@ -1,0 +1,53 @@
+version: '3.9'
+
+services:
+  banco:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: naas
+      POSTGRES_PASSWORD: naas
+      POSTGRES_DB: naas
+    ports:
+      - "5432:5432"
+    volumes:
+      - naas_db:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  api:
+    build: ../apps/api
+    environment:
+      URL_BANCO: postgresql+psycopg2://naas:naas@banco:5432/naas
+      URL_REDIS: redis://redis:6379/0
+      CHAVE_JWT: "chave-super-secreta"
+    ports:
+      - "8000:8000"
+    depends_on:
+      - banco
+      - redis
+
+  trabalhador:
+    build: ../apps/api
+    command: ["python", "-m", "app.worker"]
+    environment:
+      URL_BANCO: postgresql+psycopg2://naas:naas@banco:5432/naas
+      URL_REDIS: redis://redis:6379/0
+      CHAVE_JWT: "chave-super-secreta"
+    depends_on:
+      - banco
+      - redis
+
+  web:
+    build: ../apps/web
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  naas_db:
